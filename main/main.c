@@ -13,7 +13,9 @@
 
 //Calculate the values for the minimum (0.75ms) and maximum (2.25) servo pulse widths
 #define LEDC_DUTY_MIN           (245) // Set duty to 3% (0 deg angle position)
-#define LEDC_DUTY_MAX           (587) // Set duty to 7.16% to achieve an angle of 90% (max angle)
+#define LEDC_DUTY_MAX           (587) // Set duty to 7.16% to achieve an angle of 90% (max)
+
+#define STEP_TWICE_AS_FAST       (5) //from 90 angles in 1 sec to 90 angles in 0.5 sec
 
 static void example_ledc_init(void);
 
