@@ -12,8 +12,8 @@
 #define LEDC_FREQUENCY          (50) // Frequency in Hertz. 50 Hz for a 20ms period.
 
 //Calculate the values for the minimum (0.75ms) and maximum (2.25) servo pulse widths
-#define LEDC_DUTY_MIN           (245) // Set duty to 3.75%. Changed to 3%
-#define LEDC_DUTY_MAX           (940) // Set duty to 11.25%. Changed to 11.47%
+#define LEDC_DUTY_MIN           (245) // Set duty to 3% (0 deg angle position)
+#define LEDC_DUTY_MAX           (587) // Set duty to 7.16% to achieve an angle of 90% (max angle)
 
 static void example_ledc_init(void);
 
