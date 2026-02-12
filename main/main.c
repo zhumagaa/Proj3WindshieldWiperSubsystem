@@ -4,7 +4,7 @@
 
 #define LEDC_TIMER              LEDC_TIMER_0
 #define LEDC_MODE               LEDC_LOW_SPEED_MODE
-#define LEDC_OUTPUT_IO         (5)
+#define LEDC_OUTPUT_IO          (5)
 #define LEDC_CHANNEL            LEDC_CHANNEL_0
 #define LEDC_DUTY_RES           LEDC_TIMER_13_BIT // Set duty resolution to 13 bits
 
@@ -15,7 +15,8 @@
 #define LEDC_DUTY_MIN           (245) // Set duty to 3% (0 deg angle position)
 #define LEDC_DUTY_MAX           (587) // Set duty to 7.16% to achieve an angle of 90% (max)
 
-#define STEP_TWICE_AS_FAST       (5) //from 90 angles in 1 sec to 90 angles in 0.5 sec
+#define STEP_HIGH_SPEED      (5.7) //or 6 -- speed fast -- 90 deg in 0.6 sec
+#define STEP_LOW_SPEED       (3) //or 3 -- speed slow -- 90 deg in 1.5 sec
 
 static void example_ledc_init(void);
 
@@ -30,13 +31,23 @@ void app_main(void)
 
  while(1) {
 
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, LEDC_DUTY_MIN);
-    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
-    vTaskDelay(1000 /portTICK_PERIOD_MS);    
- 
-    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, LEDC_DUTY_MAX);
-    ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
-    vTaskDelay(1000 /portTICK_PERIOD_MS);
+    //go from 0 to 90 in 0.6s
+    for (int i=LEDC_DUTY_MIN; i<= LEDC_DUTY_MAX; i+=STEP_HIGH_SPEED) {
+        ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
+        ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+        vTaskDelay(10 /portTICK_PERIOD_MS);    
+    }
+    
+    // vTaskDelay(1000 /portTICK_PERIOD_MS);    
+
+    // go from 90 to 0 in 0.6s
+    for (int i=LEDC_DUTY_MAX; i>=LEDC_DUTY_MIN; i-=STEP_HIGH_SPEED) {
+        ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
+        ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+        vTaskDelay(10 /portTICK_PERIOD_MS);
+    }
+
+    // vTaskDelay(1000 /portTICK_PERIOD_MS);    
  }
 }
 
