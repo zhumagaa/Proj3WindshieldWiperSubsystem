@@ -51,79 +51,231 @@ void app_main(void)
 
     int modeSel_adc_bits;                                   // ADC reading (bits)
     int delayTimeSel_adc_bits;                                   // ADC reading (bits)
+    int INTtimeDelay;
+    int timeInterval;                                       //helper variable for time delay  
+    int state = 0;      // helper var to indicate state: 0 - STOP, 1- WAIT_DELAY_TIME, 2 - MOVE0TO90, 3- MOVE90TO0, 4 -FINISH current cycle to 0
+    float duty = LEDC_DUTY_MIN;     //helper var
 
     while(1) {
 
         adc_oneshot_read(adc1_handle, MODE_SELECTOR, &modeSel_adc_bits);    // Read ADC bits
         adc_oneshot_read(adc1_handle, DELAY_TIME_SELECTOR, &delayTimeSel_adc_bits);    // Read ADC bits
-        int INTtimeDelay;
+
+        bool off_selected = (modeSel_adc_bits < 1024);     // OFF or engine off
+        bool int_selected = (modeSel_adc_bits >= 1024 && modeSel_adc_bits < 2048);
+        bool low_selected = (modeSel_adc_bits >= 2048 && modeSel_adc_bits < 3072);
+        bool high_selected = (modeSel_adc_bits >= 3072);
 
         //determine the delay time selected by driver
-        if (delayTimeSel_adc_bits<1365) { //0-1364
-            //1 sec
-            INTtimeDelay=1000;
-        } else if (delayTimeSel_adc_bits<2730) {    //1365-2729
-            //3sec
-            INTtimeDelay=3000;
-        } else {    //2730-4095
-            //5sec
-            INTtimeDelay=5000;
-        }
+        //0-1364 - 1sec
+        if (delayTimeSel_adc_bits<1365) { INTtimeDelay=1000;} 
+        //1365-2729 - 3 sec
+        else if (delayTimeSel_adc_bits<2730) {INTtimeDelay=3000;} 
+        //2730-4095 -- 5sec
+        else { INTtimeDelay=5000;}
 
         // read from Mode Selector potentiometer & determine the selected mode
-        if (modeSel_adc_bits<1024) {
-            // MODE SELECTED: OFF
-            // printf("OFF\n");
-            ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, 0);
-            ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
-        } else if (modeSel_adc_bits<2048) {
-            // MODE SELECTED: INT
-            // printf("INT\n");
-            ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, 0);
-            ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
-            vTaskDelay(pdMS_TO_TICKS(INTtimeDelay));
-            //go from 0 to 90 in LOW SPEED
-            for (float i=LEDC_DUTY_MIN; i<= LEDC_DUTY_MAX; i+=STEP_LOW_SPEED) {
-                ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
-                ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
-                vTaskDelay(10 /portTICK_PERIOD_MS);    
+
+        // OFF or engine off behavior
+        if (off_selected) {
+            if (state == 2 || state == 3) {
+                state = 4;   // finish cycle and return to 0°
             }
-            // go from 90 to 0 in LOW SPEED
-            for (float i=LEDC_DUTY_MAX; i>=LEDC_DUTY_MIN; i-=STEP_LOW_SPEED) {
-                ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
-                ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
-                vTaskDelay(10 /portTICK_PERIOD_MS);
+            else if (state == 1) {
+                // remain stationary in hesitation
+                state = 1;
             }
-        } else if (modeSel_adc_bits<3072) {
-            // MODE SELECTED: LOW
-            //go from 0 to 90 in LOW SPEED
-            for (float i=LEDC_DUTY_MIN; i<= LEDC_DUTY_MAX; i+=STEP_LOW_SPEED) {
-                ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
-                ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
-                vTaskDelay(10 /portTICK_PERIOD_MS);    
-            }
-            // go from 90 to 0 in LOW SPEED
-            for (float i=LEDC_DUTY_MAX; i>=LEDC_DUTY_MIN; i-=STEP_LOW_SPEED) {
-                ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
-                ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
-                vTaskDelay(10 /portTICK_PERIOD_MS);
-            }
-        } else {
-            // MODE SELECTED: HIGH
-            // printf("HIGH\n");
-            //go from 0 to 90 in HIGH SPEED
-            for (float i=LEDC_DUTY_MIN; i<= LEDC_DUTY_MAX; i+=STEP_HIGH_SPEED) {
-                ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
-                ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
-                vTaskDelay(10 /portTICK_PERIOD_MS);    
-            }
-            // go from 90 to 0 in HIGH SPEED
-            for (float i=LEDC_DUTY_MAX; i>=LEDC_DUTY_MIN; i-=STEP_HIGH_SPEED) {
-                ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
-                ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
-                vTaskDelay(10 /portTICK_PERIOD_MS);
+            else {
+                state = 0;     // already parked
             }
         }
+
+        // INT mode
+        else if (int_selected) {
+            if (state == 0) {
+                state = 1;
+                timeInterval = 0;
+            }
+        }
+
+        // LOW continuous
+        else if (low_selected) {
+            if (state == 0) {
+                state = 2;
+            }
+        }
+
+        // HIGH continuous
+        else if (high_selected) {
+            if (state == 0) {
+                state = 2;
+            }
+        }
+
+        // if (modeSel_adc_bits<1024) {
+        //     // MODE SELECTED: OFF
+        //     // printf("OFF\n");
+        //     state=0; //STOP state
+        //     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, 0);
+        //     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+        // } else if (modeSel_adc_bits<2048) {
+        //     // MODE SELECTED: INT
+        //     // printf("INT\n");
+        //     if (state==0) { //STOP state
+        //         state=1; //WAIT DELAY TIME state
+        //         timeInterval=0;
+        //     }
+        //     // ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, 0);
+        //     // ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+        //     // vTaskDelay(pdMS_TO_TICKS(INTtimeDelay));
+        //     // //go from 0 to 90 in LOW SPEED
+        //     // for (float i=LEDC_DUTY_MIN; i<= LEDC_DUTY_MAX; i+=STEP_LOW_SPEED) {
+        //     //     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
+        //     //     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+        //     //     vTaskDelay(10 /portTICK_PERIOD_MS);    
+        //     // }
+        //     // // go from 90 to 0 in LOW SPEED
+        //     // for (float i=LEDC_DUTY_MAX; i>=LEDC_DUTY_MIN; i-=STEP_LOW_SPEED) {
+        //     //     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
+        //     //     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+        //     //     vTaskDelay(10 /portTICK_PERIOD_MS);
+        //     // }
+        // } else if (modeSel_adc_bits<3072) {
+        //     // MODE SELECTED: LOW
+        //     //go from 0 to 90 in LOW SPEED
+        //     if(state==0) {
+        //         state=2; //MOVE 0 to 90 deg state
+        //     }
+
+        //     // for (float i=LEDC_DUTY_MIN; i<= LEDC_DUTY_MAX; i+=STEP_LOW_SPEED) {
+        //     //     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
+        //     //     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+        //     //     vTaskDelay(10 /portTICK_PERIOD_MS);    
+        //     // }
+        //     // // go from 90 to 0 in LOW SPEED
+        //     // for (float i=LEDC_DUTY_MAX; i>=LEDC_DUTY_MIN; i-=STEP_LOW_SPEED) {
+        //     //     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
+        //     //     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+        //     //     vTaskDelay(10 /portTICK_PERIOD_MS);
+        //     // }
+        // } else {
+        //     // MODE SELECTED: HIGH
+        //     // printf("HIGH\n");
+        //     //go from 0 to 90 in HIGH SPEED
+        //     if(state==0) {
+        //         state=2; //MOVE 0 to 90 deg state
+        //     }
+        //     // for (float i=LEDC_DUTY_MIN; i<= LEDC_DUTY_MAX; i+=STEP_HIGH_SPEED) {
+        //     //     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
+        //     //     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+        //     //     vTaskDelay(10 /portTICK_PERIOD_MS);    
+        //     // }
+        //     // go from 90 to 0 in HIGH SPEED
+        //     // for (float i=LEDC_DUTY_MAX; i>=LEDC_DUTY_MIN; i-=STEP_HIGH_SPEED) {
+        //     //     ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
+        //     //     ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+        //     //     vTaskDelay(10 /portTICK_PERIOD_MS);
+        //     // }
+        // }
+
+        //determine step that you'll use to move wiper up/down
+        float step;
+        if (modeSel_adc_bits>3072){step=STEP_HIGH_SPEED;}
+        else{step=STEP_LOW_SPEED;}
+
+        switch (state) {
+
+            case 1:     //wait
+                timeInterval += 20;
+
+                // stay still during hesitation
+                if (timeInterval >= INTtimeDelay && !off_selected) {
+                    state = 2;
+                }
+                break;
+
+            case 2://MOVE FROM 0 to 90
+                duty += step;
+                if (duty >= LEDC_DUTY_MAX) {
+                    duty = LEDC_DUTY_MAX;
+                    state = 3;
+                }
+                ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, duty);
+                ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+                break;
+
+            case 3: //MOVE FROM 90 to 0
+                duty -= step;
+                if (duty <= LEDC_DUTY_MIN) {
+                    duty = LEDC_DUTY_MIN;
+
+                    if (off_selected || state == 4) {
+                        state = 0;       // park and stop
+                    }
+                    else if (int_selected) {
+                        state = 1;
+                        timeInterval = 0;
+                    }
+                    else {
+                        state = 2;    // continuous LOW/HIGH
+                    }
+                }
+                ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, duty);
+                ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+                break;
+
+            case 4: //FINISH CYCLE
+                // always move toward 0°
+                duty -= step;
+                if (duty <= LEDC_DUTY_MIN) {
+                    duty = LEDC_DUTY_MIN;
+                    state = 0;   // parked
+                }
+                ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, duty);
+                ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+                break;
+
+            case 0: //STOP
+            default:
+                // parked and stationary
+                ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, 0);
+                ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+                break;
+        }
+
+
+        // switch(state) {
+        //     case 0: //STOP state
+        //         break;
+        //     case 1: // WAIT delay time state
+        //         timeInterval +=20;
+        //         if (timeInterval>=INTtimeDelay) {
+        //             state=2;  // MOVE 0 TO 90 DEG state
+        //         }
+        //         break;
+        //     case 2: // MOVE 0 TO 90 DEG state
+        //         duty+=step;
+        //         if (duty >= LEDC_DUTY_MAX) {
+        //             duty = LEDC_DUTY_MAX;
+        //             state = 3;
+        //         }
+        //         ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, duty);
+        //         ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+        //         break;
+        //     case 3: // MOVE 90 TO 0 DEG state
+        //         duty-=step;
+        //         if (duty <= LEDC_DUTY_MIN) {
+        //             duty = LEDC_DUTY_MIN;
+        //             state = 0;
+        //         }
+        //         ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, duty);
+        //         ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
+        //         break;
+        //     default:
+        //         break;
+        //     vTaskDelay(pdMS_TO_TICKS(20));   // main loop tick
+        // }
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
 
