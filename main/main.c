@@ -15,8 +15,8 @@
 #define LEDC_DUTY_MIN           (220) // Set duty to 2.6% (0 deg angle position)
 #define LEDC_DUTY_MAX           (590) // Set duty to 7.56% to achieve an angle of 90% (max)
 
-#define STEP_HIGH_SPEED      (5.7) //or 6 -- speed fast -- 90 deg in 0.6 sec
-#define STEP_LOW_SPEED       (2.28) //or 3 -- speed slow -- 90 deg in 1.5 sec
+#define STEP_HIGH_SPEED      (6.1) //or 6 -- speed fast -- 90 deg in 0.6 sec
+#define STEP_LOW_SPEED       (2.46) //or 3 -- speed slow -- 90 deg in 1.5 sec
 
 static void example_ledc_init(void);
 
@@ -32,7 +32,7 @@ void app_main(void)
  while(1) {
 
     //go from 0 to 90 in 0.6s
-    for (int i=LEDC_DUTY_MIN; i<= LEDC_DUTY_MAX; i+=STEP_LOW_SPEED) {
+    for (int i=LEDC_DUTY_MIN; i<= LEDC_DUTY_MAX; i+=STEP_HIGH_SPEED) {
         ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
         ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
         vTaskDelay(10 /portTICK_PERIOD_MS);    
@@ -41,7 +41,7 @@ void app_main(void)
     // vTaskDelay(1000 /portTICK_PERIOD_MS);    
 
     // go from 90 to 0 in 0.6s
-    for (int i=LEDC_DUTY_MAX; i>=LEDC_DUTY_MIN; i-=STEP_LOW_SPEED) {
+    for (int i=LEDC_DUTY_MAX; i>=LEDC_DUTY_MIN; i-=STEP_HIGH_SPEED) {
         ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, i);
         ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
         vTaskDelay(10 /portTICK_PERIOD_MS);
