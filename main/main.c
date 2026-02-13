@@ -77,26 +77,14 @@ void app_main(void)
         else { INTtimeDelay=5000;}
 
         // read from Mode Selector potentiometer & determine the selected mode
-
         // OFF or engine off behavior
         if (off_selected) {
-            // if (state == 2 || state == 3) {
-            //     state = 4;   // finish cycle and return to 0°
-            // }
-            // else if (state == 1) {
-            //     // remain stationary in hesitation
-            //     state = 1;
-            // }
-            // else {
-            //     state = 0;     // already parked
-            // }
             if (state == 0) {
                 state = 0;   // already parked
             } else {
                 state = 4;   // ALWAYS finish cycle and park
             }
         }
-
         // INT mode
         else if (int_selected) {
             if (state == 0) {
@@ -104,15 +92,13 @@ void app_main(void)
                 timeInterval = 0;
             }
         }
-
-        // LOW continuous
+        // LOW speed mode
         else if (low_selected) {
             if (state == 0) {
                 state = 2;
             }
         }
-
-        // HIGH continuous
+        // HIGH speed mode
         else if (high_selected) {
             if (state == 0) {
                 state = 2;
@@ -120,17 +106,10 @@ void app_main(void)
         }
 
         //determine step that you'll use to move wiper up/down
-        // float step;
-        // if (modeSel_adc_bits>3072){step=STEP_HIGH_SPEED;}
-        // else{step=STEP_LOW_SPEED;}
-        if (high_selected) {
-            requested_step = STEP_HIGH_SPEED;
-        } else {
-            requested_step = STEP_LOW_SPEED;
-        }
+        if (high_selected) {requested_step = STEP_HIGH_SPEED;} 
+        else {requested_step = STEP_LOW_SPEED; }
 
         switch (state) {
-
             case 1:     //wait
                 timeInterval += 20;
 
