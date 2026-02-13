@@ -53,13 +53,13 @@ void app_main(void)
 
         adc_oneshot_read(adc1_handle, MODE_SELECTOR, &modeSel_adc_bits);    // Read ADC bits
 
-        // read from potentiometer & determine the selected mode
+        // read from Mode Selector potentiometer & determine the selected mode
         if (modeSel_adc_bits<1024) {
             // MODE SELECTED: OFF
             // printf("OFF\n");
             ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, 0);
             ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
-        } else if (modeSel_adc_bits>=1024 && modeSel_adc_bits<2048) {
+        } else if (modeSel_adc_bits<2048) {
             // MODE SELECTED: INT
             // printf("INT\n");
             //go from 0 to 90 in LOW SPEED
@@ -77,7 +77,7 @@ void app_main(void)
             ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, 0);
             ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
             vTaskDelay(1000 /portTICK_PERIOD_MS); //user selected value
-        } else if (modeSel_adc_bits>=2048 && modeSel_adc_bits<3072) {
+        } else if (modeSel_adc_bits<3072) {
             // MODE SELECTED: LOW
             //go from 0 to 90 in LOW SPEED
             for (float i=LEDC_DUTY_MIN; i<= LEDC_DUTY_MAX; i+=STEP_LOW_SPEED) {
